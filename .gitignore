@@ -1,0 +1,23 @@
+# Environments & Virtual Envs
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Static uploads & database
+static/uploads/*
+!static/uploads/.gitkeep
+database/*.db
+database/*.db-journal
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Vercel & IDE
+.vercel/
+.idea/
+.vscode/
