@@ -40,9 +40,9 @@ def train_and_evaluate_all():
     # 1. Text Classification Pipeline
     print("Fitting TF-IDF Vectorizer...")
     vectorizer = TfidfVectorizer(
-        max_features=3500,
+        max_features=6000,
         ngram_range=(1, 2),
-        stop_words='english',
+        token_pattern=r'(?u)\b\w+\b',
         sublinear_tf=True
     )
 
@@ -54,9 +54,9 @@ def train_and_evaluate_all():
     )
 
     algorithms = {
-        "Logistic Regression": LogisticRegression(max_iter=1000, C=1.0, random_state=42),
-        "Naive Bayes": MultinomialNB(alpha=0.5),
-        "Random Forest": RandomForestClassifier(n_estimators=100, max_depth=15, random_state=42)
+        "Logistic Regression": LogisticRegression(max_iter=2000, C=2.0, class_weight='balanced', random_state=42),
+        "Naive Bayes": MultinomialNB(alpha=0.1),
+        "Random Forest": RandomForestClassifier(n_estimators=150, max_depth=None, min_samples_split=2, class_weight='balanced', random_state=42)
     }
 
     trained_models = {}

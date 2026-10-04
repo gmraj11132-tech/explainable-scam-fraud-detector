@@ -80,41 +80,87 @@ def extract_and_analyze_embedded_urls(text: str) -> list:
 
 def compute_token_attributions(text: str, vectorizer, model) -> list:
     """
-    Calculate feature attribution (importance score) for individual words in the input.
-    Provides local explainability (XAI) similar to linear LIME / SHAP.
+    Calculate mathematical feature attribution (importance score) for individual words in the input.
+    - Logistic Regression: Uses linear log-odds coefficients (coef_[0])
+    - Naive Bayes: Uses log-likelihood ratio (feature_log_prob_[1] - feature_log_prob_[0])
+    - Random Forest: Uses ensemble feature importance weighted by TF-IDF presence
     """
-    if not hasattr(model, 'coef_'):
-        # If model doesn't have linear coefficients (e.g., Random Forest),
-        # return frequency-weighted heuristic word importances
-        words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
-        results = []
-        for w in set(words):
-            if any(w in p["regex"] for p in THREAT_PATTERNS.values()):
-                results.append({"word": w, "weight": 0.45, "impact": "scam"})
-        return sorted(results, key=lambda x: abs(x["weight"]), reverse=True)[:10]
+    if vectorizer is None or model is None:
+        return []
 
     feature_names = vectorizer.get_feature_names_out()
     feature_to_idx = {feat: idx for idx, feat in enumerate(feature_names)}
-    coefficients = model.coef_[0]
-
     words = re.findall(r'\b[a-zA-Z]{2,}\b', text.lower())
     attributions = []
     seen = set()
 
-    for word in words:
-        if word in seen:
-            continue
-        seen.add(word)
-        if word in feature_to_idx:
-            idx = feature_to_idx[word]
-            weight = float(coefficients[idx])
-            attributions.append({
-                "word": word,
-                "weight": round(weight, 4),
-                "impact": "scam" if weight > 0 else "legitimate"
-            })
+    # 1. Logistic Regression: Linear Coefficients
+    if hasattr(model, 'coef_') and len(model.coef_) > 0:
+        coefficients = model.coef_[0]
+        for word in words:
+            if word in seen:
+                continue
+            seen.add(word)
+            if word in feature_to_idx:
+                idx = feature_to_idx[word]
+                weight = float(coefficients[idx])
+                attributions.append({
+                    "word": word,
+                    "weight": round(weight, 4),
+                    "impact": "scam" if weight > 0 else "legitimate"
+                })
 
-    # Sort by absolute magnitude of importance
+    # 2. Multinomial Naive Bayes: Log-Likelihood Ratio
+    elif hasattr(model, 'feature_log_prob_') and len(model.feature_log_prob_) > 1:
+        log_prob_scam = model.feature_log_prob_[1]
+        log_prob_legit = model.feature_log_prob_[0]
+        for word in words:
+            if word in seen:
+                continue
+            seen.add(word)
+            if word in feature_to_idx:
+                idx = feature_to_idx[word]
+                # Log-odds ratio: positive means more likely scam, negative means legitimate
+                weight = float(log_prob_scam[idx] - log_prob_legit[idx])
+                attributions.append({
+                    "word": word,
+                    "weight": round(weight, 4),
+                    "impact": "scam" if weight > 0 else "legitimate"
+                })
+
+    # 3. Random Forest: Feature Importances
+    elif hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        # Transform document to get TF-IDF weights
+        doc_vec = vectorizer.transform([text]).toarray()[0]
+        for word in words:
+            if word in seen:
+                continue
+            seen.add(word)
+            if word in feature_to_idx:
+                idx = feature_to_idx[word]
+                importance = float(importances[idx] * doc_vec[idx] * 50.0)
+                # Determine impact based on word frequency in threat indicators
+                is_scam_pattern = any(word in p["regex"] for p in THREAT_PATTERNS.values())
+                attributions.append({
+                    "word": word,
+                    "weight": round(importance if is_scam_pattern else -importance, 4),
+                    "impact": "scam" if is_scam_pattern or importance > 0.05 else "legitimate"
+                })
+
+    # Fallback for out-of-vocabulary heuristic words
+    if len(attributions) < 3:
+        for w in set(words):
+            if w not in seen:
+                for key, p in THREAT_PATTERNS.items():
+                    if re.search(r'\b' + re.escape(w) + r'\b', p["regex"], re.IGNORECASE):
+                        attributions.append({
+                            "word": w,
+                            "weight": 0.65 if p["severity"] == "Critical" else 0.40,
+                            "impact": "scam"
+                        })
+                        seen.add(w)
+
     attributions.sort(key=lambda item: abs(item["weight"]), reverse=True)
     return attributions[:15]
 
@@ -129,7 +175,7 @@ def generate_recommendations(signals: list, embedded_urls: list, risk_score: int
         recommendations.append("Exercise caution: This communication displays characteristics of unsolicited or persuasive social engineering.")
         recommendations.append("Verify the sender's identity through independent official channels before taking action.")
     else:
-        recommendations.append("Low risk indicators detected. The communication conforms to standard transactional or conversational patterns.")
+        recommendations.append("Low risk indicators detected. The communication conforms to standard conversational or transactional patterns.")
         recommendations.append("Security best practice: Never share One-Time Passwords (OTPs) or PINs with anyone.")
 
     for s in signals:
@@ -144,29 +190,47 @@ def generate_recommendations(signals: list, embedded_urls: list, risk_score: int
         if u.get("risk_score", 0) > 40:
             recommendations.append(f"Suspicious external destination detected ({u['domain']}). Avoid entering any personal credentials.")
 
-    # Deduplicate while preserving order
     deduped = []
     for r in recommendations:
         if r not in deduped:
             deduped.append(r)
     return deduped
 
-def explain_prediction(text: str, ml_probability: float, vectorizer, model) -> dict:
+def explain_prediction(text: str, ml_probability: float, vectorizer, model, all_models=None) -> dict:
     """
     Main XAI evaluation function combining ML probabilities,
-    token-level attribution, and cognitive threat heuristics.
+    token-level attribution, cognitive heuristics, and multi-model consensus.
     """
     signals = analyze_heuristic_signals(text)
     embedded_urls = extract_and_analyze_embedded_urls(text)
     token_weights = compute_token_attributions(text, vectorizer, model)
 
-    # Heuristic adjustment score
-    heuristic_penalty = sum(20 if s["severity"] == "Critical" else 14 if s["severity"] == "High" else 8 for s in signals)
-    url_penalty = max([u["risk_score"] for u in embedded_urls], default=0) * 0.35
+    # Multi-model consensus comparison
+    model_comparisons = {}
+    if all_models and vectorizer:
+        try:
+            X_vec = vectorizer.transform([text])
+            for m_name, m_obj in all_models.items():
+                p = float(m_obj.predict_proba(X_vec)[0][1])
+                model_comparisons[m_name] = round(p * 100, 1)
+        except Exception:
+            pass
 
-    # Composite calibrated risk calculation (ML probability 60%, Heuristics 25%, URL factors 15%)
-    raw_score = (ml_probability * 100 * 0.60) + (min(100, heuristic_penalty) * 0.25) + (url_penalty)
-    calibrated_risk = int(min(100, max(0, round(raw_score))))
+    # Dynamic composite risk calculation
+    heuristic_penalty = sum(25 if s["severity"] == "Critical" else 18 if s["severity"] == "High" else 10 for s in signals)
+    url_penalty = max([u["risk_score"] for u in embedded_urls], default=0) * 0.40
+
+    # If ML probability is decisive (> 0.70 or < 0.25), give it primary authority (70%)
+    if ml_probability > 0.70 or ml_probability < 0.25:
+        raw_score = (ml_probability * 100 * 0.75) + (min(60, heuristic_penalty) * 0.15) + (url_penalty * 0.10)
+    else:
+        raw_score = (ml_probability * 100 * 0.55) + (min(100, heuristic_penalty) * 0.30) + (url_penalty * 0.15)
+
+    # Ensure clean conversational messages have low scores
+    if len(signals) == 0 and len(embedded_urls) == 0 and ml_probability < 0.40:
+        raw_score = min(raw_score, ml_probability * 60)
+
+    calibrated_risk = int(min(100, max(1, round(raw_score))))
 
     if calibrated_risk >= 65:
         verdict = "Scam / High Risk Fraud"
@@ -185,6 +249,7 @@ def explain_prediction(text: str, ml_probability: float, vectorizer, model) -> d
         "verdict_badge": verdict_badge,
         "risk_score": calibrated_risk,
         "ml_probability": round(ml_probability * 100, 2),
+        "model_comparisons": model_comparisons,
         "signals": signals,
         "embedded_urls": embedded_urls,
         "token_weights": token_weights,

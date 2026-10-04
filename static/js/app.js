@@ -253,23 +253,64 @@ function renderScanResults(result) {
   riskBar.style.width = `${targetScore}%`;
   riskBar.style.backgroundColor = targetScore >= 65 ? '#ef4444' : targetScore >= 30 ? '#f59e0b' : '#10b981';
 
-  // 3. Reasoning Summary Box (if present from GPT)
+  // 3. Reasoning Summary Box (if present from GPT or Live Web)
   let reasoningBox = document.getElementById('reasoning-summary-box');
   if (!reasoningBox) {
     reasoningBox = document.createElement('div');
     reasoningBox.id = 'reasoning-summary-box';
-    reasoningBox.style.cssText = 'background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; font-size: 0.8rem; color: #c7d2fe; line-height: 1.5;';
+    reasoningBox.style.cssText = 'background: var(--nm-bg); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 0.82rem; color: var(--nm-text-primary); line-height: 1.5; box-shadow: var(--nm-inset-sm);';
     const meterBox = document.querySelector('.risk-meter-box');
     meterBox.parentNode.insertBefore(reasoningBox, meterBox.nextSibling);
   }
   if (result.reasoning_summary) {
     reasoningBox.style.display = 'block';
-    reasoningBox.innerHTML = `<b>AI Forensic Summary:</b> ${result.reasoning_summary}`;
+    reasoningBox.innerHTML = `<b style="color: var(--nm-accent);">AI Forensic Summary:</b> ${result.reasoning_summary}`;
   } else if (result.live_web && result.live_web.page_title) {
     reasoningBox.style.display = 'block';
-    reasoningBox.innerHTML = `<b>Live Web Telemetry:</b> Title: <i>"${result.live_web.page_title}"</i> | Reachable: ${result.live_web.is_reachable ? 'Yes' : 'No'} | Redirects: ${result.live_web.is_redirected ? 'Yes' : 'None'}`;
+    reasoningBox.innerHTML = `<b style="color: var(--nm-accent);">Live Web Telemetry:</b> Title: <i>"${result.live_web.page_title}"</i> &bull; Reachable: ${result.live_web.is_reachable ? 'Yes' : 'No'} &bull; Redirects: ${result.live_web.is_redirected ? 'Yes' : 'None'}`;
   } else {
     reasoningBox.style.display = 'none';
+  }
+
+  // 3b. Multi-Model Consensus Breakdown (Real-time parallel inference proof)
+  let consensusBox = document.getElementById('model-consensus-box');
+  if (!consensusBox) {
+    consensusBox = document.createElement('div');
+    consensusBox.id = 'model-consensus-box';
+    consensusBox.className = 'xai-section';
+    const tokenBox = document.getElementById('token-attribution-box');
+    tokenBox.parentNode.insertBefore(consensusBox, tokenBox);
+  }
+
+  if (result.model_comparisons && Object.keys(result.model_comparisons).length > 0) {
+    consensusBox.style.display = 'block';
+    consensusBox.innerHTML = `
+      <div class="xai-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        <span>Classification Core Multi-Model Comparison (Live Inference)</span>
+      </div>
+      <div style="background: var(--nm-bg); padding: 16px; border-radius: var(--nm-radius-lg); box-shadow: var(--nm-inset); display: flex; flex-direction: column; gap: 10px;">
+        ${Object.entries(result.model_comparisons).map(([mName, mProb]) => {
+          const isSelected = result.model_used && result.model_used.includes(mName);
+          const barColor = mProb >= 65 ? '#ef4444' : mProb >= 30 ? '#f59e0b' : '#10b981';
+          return `
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-bottom: 4px;">
+                <span style="font-weight: 600; color: ${isSelected ? 'var(--nm-accent)' : 'var(--nm-text-primary)'};">
+                  ${mName} ${isSelected ? '<span class="version-pill" style="font-size: 0.65rem; margin-left: 6px;">Active Selection</span>' : ''}
+                </span>
+                <span style="font-weight: 700; color: ${barColor};">${mProb}%</span>
+              </div>
+              <div style="height: 6px; background: var(--nm-bg-dark); border-radius: var(--nm-radius-full); box-shadow: var(--nm-inset-sm); overflow: hidden;">
+                <div style="height: 100%; width: ${mProb}%; background: ${barColor}; border-radius: var(--nm-radius-full); transition: width 0.6s ease;"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  } else {
+    consensusBox.style.display = 'none';
   }
 
   // 4. Token Attribution Heatmap

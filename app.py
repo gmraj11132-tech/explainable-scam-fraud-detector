@@ -152,7 +152,7 @@ def analyze_text():
     X_vec = vectorizer.transform([text])
     ml_prob = float(model.predict_proba(X_vec)[0][1])
 
-    xai_result = explain_prediction(text, ml_prob, vectorizer, model)
+    xai_result = explain_prediction(text, ml_prob, vectorizer, model, all_models=text_models)
 
     scan_id = log_scan(
         input_type="text",
@@ -325,7 +325,7 @@ def analyze_image():
     X_vec = vectorizer.transform([extracted_text])
     ml_prob = float(model.predict_proba(X_vec)[0][1])
 
-    xai_result = explain_prediction(extracted_text, ml_prob, vectorizer, model)
+    xai_result = explain_prediction(extracted_text, ml_prob, vectorizer, model, all_models=text_models)
 
     scan_id = log_scan(
         input_type="image",

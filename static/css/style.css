@@ -1212,13 +1212,17 @@ footer {
    RESPONSIVENESS & MOBILE VIEW OPTIMIZATION
    ============================================================ */
 @media (max-width: 960px) {
+  .container {
+    padding: 0 18px;
+  }
   .main-grid {
     grid-template-columns: 1fr;
+    gap: 22px;
   }
   .nav-container {
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 12px;
   }
   .nav-tabs {
     justify-content: flex-start;
@@ -1227,43 +1231,141 @@ footer {
     width: 100%;
     scrollbar-width: none;
     border-radius: var(--nm-radius-lg);
+    padding: 5px;
+    gap: 6px;
   }
   .nav-tabs::-webkit-scrollbar {
     display: none;
   }
+  .tab-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
   .brand-logo {
     justify-content: space-between;
   }
+  .hero {
+    padding: 42px 0 20px;
+  }
   .hero h2 {
-    font-size: 2rem;
+    font-size: 1.95rem;
   }
 }
 
 @media (max-width: 640px) {
+  .container {
+    padding: 0 14px;
+  }
   .hero {
-    padding: 36px 0 20px;
+    padding: 30px 0 16px;
   }
   .hero h2 {
-    font-size: 1.65rem;
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+  .hero p {
+    font-size: 0.86rem;
+  }
+  .hero-tag {
+    font-size: 0.72rem;
+    padding: 5px 12px;
   }
   .card {
-    padding: 20px;
+    padding: 18px 16px;
     border-radius: var(--nm-radius-lg);
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .card-title {
+    font-size: 0.98rem;
   }
   .mode-pills {
     flex-direction: column;
+    gap: 8px;
+    padding: 6px;
   }
-  .risk-number {
-    font-size: 2.8rem;
+  .mode-pill {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+    justify-content: flex-start;
+  }
+  .preset-chips {
+    gap: 6px;
+  }
+  .preset-chip {
+    padding: 6px 11px;
+    font-size: 0.74rem;
+  }
+  .form-control {
+    font-size: 16px; /* Prevents auto-zoom on iOS Safari */
+    padding: 12px 14px;
+  }
+  textarea.form-control {
+    min-height: 120px;
   }
   .action-row {
     flex-direction: column;
+    gap: 10px;
   }
   .btn {
     width: 100%;
+    min-height: 46px;
+    font-size: 0.88rem;
+  }
+  .risk-number {
+    font-size: 2.75rem;
+  }
+  .risk-meter-box {
+    padding: 18px 14px;
+  }
+  .token-cloud {
+    padding: 12px;
+    gap: 6px;
+  }
+  .token-tag {
+    font-size: 0.72rem;
+    padding: 4px 8px;
   }
   .feedback-box {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .feedback-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .btn-feedback {
+    flex: 1;
+    justify-content: center;
+    padding: 7px 6px;
+    font-size: 0.72rem;
+  }
+  .styled-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 14px 0;
+  }
+  .styled-table th, .styled-table td {
+    padding: 10px 12px;
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
+  .download-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .doc-card {
+    padding: 18px 16px;
+  }
+  .modal-box {
+    padding: 22px 18px;
+    border-radius: var(--nm-radius-lg);
   }
 }

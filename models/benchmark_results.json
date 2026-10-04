@@ -6,14 +6,14 @@
         "f1_score": 1.0,
         "roc_auc": 1.0,
         "confusion_matrix": {
-            "TN": 325,
+            "TN": 450,
             "FP": 0,
             "FN": 0,
-            "TP": 325
+            "TP": 450
         },
         "false_positive_rate": 0.0,
         "false_negative_rate": 0.0,
-        "test_sample_size": 650
+        "test_sample_size": 900
     },
     "Naive Bayes": {
         "accuracy": 1.0,
@@ -22,14 +22,14 @@
         "f1_score": 1.0,
         "roc_auc": 1.0,
         "confusion_matrix": {
-            "TN": 325,
+            "TN": 450,
             "FP": 0,
             "FN": 0,
-            "TP": 325
+            "TP": 450
         },
         "false_positive_rate": 0.0,
         "false_negative_rate": 0.0,
-        "test_sample_size": 650
+        "test_sample_size": 900
     },
     "Random Forest": {
         "accuracy": 1.0,
@@ -38,18 +38,18 @@
         "f1_score": 1.0,
         "roc_auc": 1.0,
         "confusion_matrix": {
-            "TN": 325,
+            "TN": 450,
             "FP": 0,
             "FN": 0,
-            "TP": 325
+            "TP": 450
         },
         "false_positive_rate": 0.0,
         "false_negative_rate": 0.0,
-        "test_sample_size": 650
+        "test_sample_size": 900
     },
     "URL Classifier (Random Forest)": {
         "accuracy": 1.0,
         "f1_score": 1.0,
-        "test_sample_size": 265
+        "test_sample_size": 315
     }
 }
