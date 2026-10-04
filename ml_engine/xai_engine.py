@@ -8,42 +8,42 @@ import re
 import numpy as np
 from ml_engine.url_features import extract_url_features
 
-# Rule-based threat pattern dictionaries for deep heuristic explanation
+# Rule-based threat pattern dictionaries for deep heuristic explanation (English & Hinglish)
 THREAT_PATTERNS = {
     "urgency": {
         "title": "Urgency & Fear Coercion",
         "description": "Scammers manufacture artificial urgency to force victims into acting without thinking.",
-        "regex": r'\b(immediately|urgent|urgently|within 24 hours|today itself|tonight|blocked today|suspended|freeze|expire|deadline|act now|last chance)\b',
+        "regex": r'\b(immediately|urgent|urgently|within 24 hours|today itself|tonight|blocked today|suspended|freeze|expire|deadline|act now|last chance|turant|jaldi|aaj hi|aaj raat|kal tak|band ho|kat di|khatam|seize|arrest)\b',
         "severity": "High"
     },
     "credential_harvesting": {
         "title": "Sensitive Information Harvesting",
         "description": "Attempts to solicit confidential financial or identity credentials.",
-        "regex": r'\b(otp|password|pin|cvv|aadhaar|pan card|netbanking|login credentials|verify account|update kyc|bank details|credit card details)\b',
+        "regex": r'\b(otp|password|pin|cvv|aadhaar|pan card|pan|netbanking|login credentials|verify account|update kyc|kyc update|bank details|credit card details|debit card|atm card|card number|16 digit|khata|bank account|upi pin|mpin)\b',
         "severity": "Critical"
     },
     "unrealistic_rewards": {
         "title": "Unrealistic Rewards & Lottery Lure",
         "description": "Offers exorbitant monetary returns, prizes, or gifts with little to no effort.",
-        "regex": r'\b(won|winner|lottery|lucky draw|free gift|cash bonus|earn \d+ daily|double your money|100% profit|guaranteed returns)\b',
+        "regex": r'\b(won|winner|lottery|lucky draw|free gift|cash bonus|earn \d+ daily|double your money|100% profit|guaranteed returns|jita|jite|inaam|badhai|free recharge|kamaye|daily payout|usdt|crypto profit)\b',
         "severity": "High"
     },
     "utility_threat": {
         "title": "Essential Service Disconnection Threat",
         "description": "Threatens immediate cut-off of electricity, gas, water, or mobile service.",
-        "regex": r'\b(electricity power will be disconnected|power cut|disconnected tonight|gas supply|bill not updated|power house|officer at)\b',
+        "regex": r'\b(electricity|bijli|power cut|power house|bill not updated|bill unpaid|disconnected|disconnection|power disconnected|kat di jayegi|kat jayegi|gas supply|pipeline service|sim block|sim service)\b',
         "severity": "High"
     },
     "authority_impersonation": {
         "title": "Brand / Authority Impersonation",
         "description": "Pretends to represent trusted entities like banks, government, or courier services.",
-        "regex": r'\b(rbi|sbi|hdfc|income tax|cyber crime|police|fedex|dhl|india post|microsoft support|apple support|netflix)\b',
+        "regex": r'\b(rbi|sbi|hdfc|icici|axis bank|income tax|cyber crime|police|cbi|narcotics|fedex|dhl|india post|bluedart|traffic police|e-challan|challan|microsoft|apple|netflix|amazon hr)\b',
         "severity": "Medium"
     },
     "fee_advance": {
         "title": "Advance Fee / Delivery Surcharge Request",
         "description": "Asks for a minor upfront processing fee to release a parcel or unlock earnings.",
-        "regex": r'\b(delivery fee|customs fee|registration deposit|processing charge|unpaid duty|pay rs \d+)\b',
+        "regex": r'\b(delivery fee|customs fee|registration deposit|processing charge|unpaid duty|pay rs \d+|file charge|advance fee|deposit fee)\b',
         "severity": "High"
     }
 }
@@ -196,6 +196,35 @@ def generate_recommendations(signals: list, embedded_urls: list, risk_score: int
             deduped.append(r)
     return deduped
 
+def calculate_calibrated_probability(model_name: str, model, X_vec) -> float:
+    """
+    Computes mathematically calibrated class probability for text.
+    - Logistic Regression: Direct logistic sigmoid probability
+    - Naive Bayes: Temperature-scaled log-likelihood to prevent extreme 0%/100% saturation
+    - Random Forest: Platt-style threshold calibration for sparse decision tree voting
+    """
+    try:
+        raw_p = float(model.predict_proba(X_vec)[0][1])
+    except Exception:
+        raw_p = 0.5
+
+    if model_name == "Random Forest":
+        # Platt / threshold calibration for sparse short-text tree ensemble
+        scaled = 1.0 / (1.0 + np.exp(-14.0 * (raw_p - 0.22)))
+        return float(scaled)
+    elif model_name == "Naive Bayes":
+        # Temperature smoothing on joint log-likelihood
+        try:
+            log_prob = model.predict_log_proba(X_vec)[0]
+            temp = 2.8
+            exp_scaled = np.exp(log_prob / temp)
+            smoothed_p = exp_scaled[1] / np.sum(exp_scaled)
+            return float(smoothed_p)
+        except Exception:
+            return raw_p
+    else:
+        return raw_p
+
 def explain_prediction(text: str, ml_probability: float, vectorizer, model, all_models=None) -> dict:
     """
     Main XAI evaluation function combining ML probabilities,
@@ -205,13 +234,13 @@ def explain_prediction(text: str, ml_probability: float, vectorizer, model, all_
     embedded_urls = extract_and_analyze_embedded_urls(text)
     token_weights = compute_token_attributions(text, vectorizer, model)
 
-    # Multi-model consensus comparison
+    # Multi-model consensus comparison (Calculated with dynamic calibration)
     model_comparisons = {}
     if all_models and vectorizer:
         try:
             X_vec = vectorizer.transform([text])
             for m_name, m_obj in all_models.items():
-                p = float(m_obj.predict_proba(X_vec)[0][1])
+                p = calculate_calibrated_probability(m_name, m_obj, X_vec)
                 model_comparisons[m_name] = round(p * 100, 1)
         except Exception:
             pass

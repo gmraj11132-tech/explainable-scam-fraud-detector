@@ -11,7 +11,7 @@ from flask import Flask, request, jsonify, render_template, send_file
 from werkzeug.utils import secure_filename
 
 from ml_engine.url_features import extract_url_features
-from ml_engine.xai_engine import explain_prediction
+from ml_engine.xai_engine import explain_prediction, calculate_calibrated_probability
 from ml_engine.image_analyzer import analyze_image_screenshot, DEMO_PRESETS
 from ml_engine.ai_engine import inspect_live_url, analyze_with_gpt, analyze_image_with_gpt_vision
 from database.db import log_scan, get_recent_scans, get_scan_by_id, submit_feedback, get_statistics
@@ -150,7 +150,7 @@ def analyze_text():
         return jsonify({"error": "ML model is not loaded."}), 500
 
     X_vec = vectorizer.transform([text])
-    ml_prob = float(model.predict_proba(X_vec)[0][1])
+    ml_prob = calculate_calibrated_probability(model_name, model, X_vec)
 
     xai_result = explain_prediction(text, ml_prob, vectorizer, model, all_models=text_models)
 
@@ -323,7 +323,7 @@ def analyze_image():
 
     model = text_models.get(model_name, text_models.get("Logistic Regression"))
     X_vec = vectorizer.transform([extracted_text])
-    ml_prob = float(model.predict_proba(X_vec)[0][1])
+    ml_prob = calculate_calibrated_probability(model_name, model, X_vec)
 
     xai_result = explain_prediction(extracted_text, ml_prob, vectorizer, model, all_models=text_models)
 
