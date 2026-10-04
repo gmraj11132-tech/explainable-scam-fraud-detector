@@ -69,14 +69,36 @@ function clearApiKey() {
 
 // Main Tab Navigation
 function switchMainTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+  // Synchronize Top Navbar Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const oc = btn.getAttribute('onclick') || '';
+    if (oc.includes(`'${tabId}'`) || oc.includes(`"${tabId}"`)) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
 
-  const selectedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
-  if (selectedBtn) selectedBtn.classList.add('active');
+  // Synchronize Central Dock Navigation Tabs
+  document.querySelectorAll('.dock-tab-btn').forEach(btn => {
+    const oc = btn.getAttribute('onclick') || '';
+    const dt = btn.getAttribute('data-tab') || '';
+    if (oc.includes(`'${tabId}'`) || oc.includes(`"${tabId}"`) || dt === tabId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Toggle Tab Panels
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.style.display = 'none';
+  });
 
   const targetTab = document.getElementById(`tab-${tabId}`);
-  if (targetTab) targetTab.style.display = 'block';
+  if (targetTab) {
+    targetTab.style.display = 'block';
+  }
 
   if (tabId === 'history') {
     loadHistory();

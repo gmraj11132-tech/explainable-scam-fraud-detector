@@ -197,7 +197,7 @@ a {
   box-shadow: var(--nm-inset-sm);
 }
 
-/* Navigation Tabs - Horizontal Scrollable Track (Never breaks row) */
+/* Navigation Tabs - Horizontal Bar in Header */
 .nav-tabs {
   display: flex;
   align-items: center;
@@ -207,13 +207,159 @@ a {
   border-radius: var(--nm-radius-full);
   box-shadow: var(--nm-inset);
   flex-wrap: nowrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  max-width: 580px;
 }
-.nav-tabs::-webkit-scrollbar {
-  display: none;
+
+/* ============================================================
+   CENTRAL PROJECT NAVIGATION DOCK (High-Visibility 5 Modules)
+   ============================================================ */
+.dock-nav-section {
+  margin-top: -10px;
+  margin-bottom: 28px;
+}
+
+.dock-nav-card {
+  background: var(--nm-bg);
+  border-radius: var(--nm-radius-xl);
+  box-shadow: var(--nm-extruded);
+  padding: 16px 20px 20px;
+}
+
+.dock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 0 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dock-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--nm-accent);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dock-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--nm-accent);
+}
+
+.dock-hint {
+  font-size: 0.72rem;
+  color: var(--nm-text-muted);
+  font-weight: 500;
+}
+
+.dock-tabs-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  background: var(--nm-bg-dark);
+  padding: 8px;
+  border-radius: var(--nm-radius-lg);
+  box-shadow: var(--nm-inset);
+}
+
+.dock-tab-btn {
+  background: var(--nm-bg);
+  border: none;
+  border-radius: var(--nm-radius-md);
+  box-shadow: var(--nm-extruded-sm);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  transition: var(--nm-transition);
+  color: var(--nm-text-secondary);
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+}
+
+.dock-tab-btn:hover {
+  transform: translateY(-2px);
+  color: var(--nm-text-bright);
+  box-shadow: 4px 4px 10px var(--nm-shadow-dark), -4px -4px 10px var(--nm-shadow-light);
+}
+
+.dock-tab-btn:hover .dock-tab-icon svg {
+  stroke: var(--nm-accent);
+}
+
+.dock-tab-btn.active {
+  background: var(--nm-bg-dark);
+  box-shadow: var(--nm-inset);
+  color: var(--nm-text-bright);
+  transform: translateY(0);
+}
+
+.dock-tab-btn.active .dock-tab-title {
+  color: var(--nm-accent);
+}
+
+.dock-tab-btn.active .dock-tab-icon {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-inset-sm);
+  color: var(--nm-accent);
+}
+
+.dock-tab-btn.active .dock-tab-icon svg {
+  stroke: var(--nm-accent);
+}
+
+.dock-tab-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--nm-radius-sm);
+  background: var(--nm-bg);
+  box-shadow: var(--nm-extruded-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: var(--nm-transition);
+}
+
+.dock-tab-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--nm-text-muted);
+  transition: var(--nm-transition);
+}
+
+.dock-tab-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dock-tab-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--nm-text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-tab-desc {
+  font-size: 0.68rem;
+  color: var(--nm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
 }
 
 .tab-btn {
@@ -1223,6 +1369,12 @@ footer {
 /* ============================================================
    RESPONSIVENESS & MOBILE VIEW OPTIMIZATION
    ============================================================ */
+@media (max-width: 1100px) {
+  .dock-tabs-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 960px) {
   .container {
     padding: 0 18px;
@@ -1241,13 +1393,17 @@ footer {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     width: 100%;
-    scrollbar-width: none;
+    scrollbar-width: thin;
     border-radius: var(--nm-radius-lg);
     padding: 5px;
     gap: 6px;
   }
-  .nav-tabs::-webkit-scrollbar {
-    display: none;
+  .dock-tabs-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .dock-tab-btn {
+    padding: 11px 12px;
   }
   .tab-btn {
     padding: 8px 14px;
@@ -1267,6 +1423,32 @@ footer {
 @media (max-width: 640px) {
   .container {
     padding: 0 14px;
+  }
+  .dock-nav-section {
+    margin-top: 0;
+    margin-bottom: 20px;
+  }
+  .dock-nav-card {
+    padding: 12px 14px 16px;
+    border-radius: var(--nm-radius-lg);
+  }
+  .dock-tabs-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 6px;
+  }
+  .dock-tab-btn {
+    padding: 10px 12px;
+  }
+  .dock-tab-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .dock-tab-title {
+    font-size: 0.82rem;
+  }
+  .dock-tab-desc {
+    font-size: 0.68rem;
   }
   .hero {
     padding: 30px 0 16px;

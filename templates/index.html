@@ -77,6 +77,73 @@
     </div>
   </section>
 
+  <!-- Central High-Visibility Navigation Dock (All 5 Modules Crystal Clear & 100% Accessible) -->
+  <section class="dock-nav-section">
+    <div class="container">
+      <div class="dock-nav-card">
+        <div class="dock-header">
+          <div class="dock-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>PROJECT MODULE NAVIGATION</span>
+          </div>
+          <span class="dock-hint">All 5 workspace tabs are fully interactive — click any tab to switch view</span>
+        </div>
+
+        <div class="dock-tabs-grid">
+          <button class="dock-tab-btn active" onclick="switchMainTab('scanner')" data-tab="scanner">
+            <div class="dock-tab-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <div class="dock-tab-text">
+              <span class="dock-tab-title">1. Live Scanner & XAI</span>
+              <span class="dock-tab-desc">Multimodal Text, URL & OCR</span>
+            </div>
+          </button>
+
+          <button class="dock-tab-btn" onclick="switchMainTab('benchmarks')" data-tab="benchmarks">
+            <div class="dock-tab-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            </div>
+            <div class="dock-tab-text">
+              <span class="dock-tab-title">2. Model Benchmarks</span>
+              <span class="dock-tab-desc">LR vs NB vs Random Forest</span>
+            </div>
+          </button>
+
+          <button class="dock-tab-btn" onclick="switchMainTab('history')" data-tab="history">
+            <div class="dock-tab-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="dock-tab-text">
+              <span class="dock-tab-title">3. Scan History</span>
+              <span class="dock-tab-desc">SQLite Telemetry & Forensics</span>
+            </div>
+          </button>
+
+          <button class="dock-tab-btn" onclick="switchMainTab('viva')" data-tab="viva">
+            <div class="dock-tab-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="dock-tab-text">
+              <span class="dock-tab-title">4. Viva Defense Guide</span>
+              <span class="dock-tab-desc">Exam Q&A & Speaking Script</span>
+            </div>
+          </button>
+
+          <button class="dock-tab-btn" onclick="switchMainTab('downloads')" data-tab="downloads">
+            <div class="dock-tab-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="dock-tab-text">
+              <span class="dock-tab-title">5. Paper & PPT Hub</span>
+              <span class="dock-tab-desc">Academic PDF Paper & Slides</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Main Grid Content -->
   <main class="container">
 
