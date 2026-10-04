@@ -45,6 +45,8 @@ except Exception as e:
     print(f"Warning: ML model loading error: {e}. Retrain if needed.")
 
 @app.route("/")
+@app.route("/api/index")
+@app.route("/api/index/")
 def index():
     return render_template("index.html")
 
