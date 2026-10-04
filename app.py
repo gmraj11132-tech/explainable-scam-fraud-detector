@@ -18,7 +18,10 @@ from database.db import log_scan, get_recent_scans, get_scan_by_id, submit_feedb
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
-UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = "/tmp/uploads"
+else:
+    UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = Flask(__name__)
