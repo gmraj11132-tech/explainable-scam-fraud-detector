@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 from ml_engine.url_features import extract_url_features
 from ml_engine.xai_engine import explain_prediction
 from ml_engine.image_analyzer import analyze_image_screenshot, DEMO_PRESETS
+from ml_engine.ai_engine import inspect_live_url, analyze_with_gpt, analyze_image_with_gpt_vision
 from database.db import log_scan, get_recent_scans, get_scan_by_id, submit_feedback, get_statistics
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -116,10 +117,31 @@ def analyze_text():
     data = request.get_json() or {}
     text = data.get("text", "").strip()
     model_name = data.get("model", "Logistic Regression")
+    api_key = data.get("api_key") or request.headers.get("X-API-Key") or os.environ.get("OPENAI_API_KEY")
 
     if not text:
         return jsonify({"error": "Please provide message text to analyze."}), 400
 
+    # 1. Try real-time GPT analysis if API key is provided
+    if api_key:
+        gpt_result = analyze_with_gpt(text, api_key=api_key)
+        if gpt_result:
+            scan_id = log_scan(
+                input_type="text",
+                preview=text,
+                risk_score=gpt_result["risk_score"],
+                verdict=gpt_result["verdict"],
+                verdict_badge=gpt_result["verdict_badge"],
+                model_name=gpt_result.get("engine", "OpenAI GPT-4o-mini"),
+                signals=gpt_result.get("signals", []),
+                recs=gpt_result.get("recommendations", []),
+                tokens=gpt_result.get("token_weights", [])
+            )
+            gpt_result["scan_id"] = scan_id
+            gpt_result["model_used"] = gpt_result.get("engine", "OpenAI GPT-4o-mini")
+            return jsonify(gpt_result)
+
+    # 2. Local Machine Learning & XAI fallback
     if model_name not in text_models:
         model_name = "Logistic Regression"
 
@@ -127,14 +149,11 @@ def analyze_text():
     if not model or not vectorizer:
         return jsonify({"error": "ML model is not loaded."}), 500
 
-    # ML Inference
     X_vec = vectorizer.transform([text])
     ml_prob = float(model.predict_proba(X_vec)[0][1])
 
-    # Explainable AI Analysis
     xai_result = explain_prediction(text, ml_prob, vectorizer, model)
 
-    # Save to SQLite database
     scan_id = log_scan(
         input_type="text",
         preview=text,
@@ -155,19 +174,59 @@ def analyze_text():
 def analyze_url():
     data = request.get_json() or {}
     url = data.get("url", "").strip()
+    api_key = data.get("api_key") or request.headers.get("X-API-Key") or os.environ.get("OPENAI_API_KEY")
 
     if not url:
         return jsonify({"error": "Please provide a valid website URL."}), 400
 
+    # 1. Real-time Live Web Inspection (Performs live HTTP query, inspects forms & redirects)
+    live_web_report = inspect_live_url(url)
     url_report = extract_url_features(url)
 
-    # Predict using URL Random Forest model if available
+    # Combine warning signals
+    combined_signals = list(url_report["warning_signals"])
+    if live_web_report.get("risk_signals"):
+        combined_signals.extend(live_web_report["risk_signals"])
+
+    # 2. If API Key provided, use GPT-4o with live web telemetry
+    if api_key:
+        gpt_prompt = f"Target URL: {url}\nPage Title: {live_web_report.get('page_title')}\nReachable: {live_web_report.get('is_reachable')}\nRedirected: {live_web_report.get('is_redirected')}\nPassword Field in HTML: {live_web_report.get('has_password_field')}\nFinancial Identity Input: {live_web_report.get('has_financial_form')}"
+        gpt_result = analyze_with_gpt(gpt_prompt, api_key=api_key, live_context=live_web_report)
+        if gpt_result:
+            scan_id = log_scan(
+                input_type="url",
+                preview=url,
+                risk_score=gpt_result["risk_score"],
+                verdict=gpt_result["verdict"],
+                verdict_badge=gpt_result["verdict_badge"],
+                model_name="OpenAI GPT-4o-mini + Live Web Telemetry",
+                signals=gpt_result.get("signals", []),
+                recs=gpt_result.get("recommendations", []),
+                tokens=gpt_result.get("token_weights", [])
+            )
+            gpt_result["scan_id"] = scan_id
+            gpt_result["model_used"] = "OpenAI GPT-4o-mini + Live Web Telemetry"
+            gpt_result["live_web"] = live_web_report
+            gpt_result["domain"] = url_report["domain"]
+            gpt_result["entropy"] = url_report["entropy"]
+            return jsonify(gpt_result)
+
+    # 3. Machine Learning + Live Heuristic calculation
     ml_url_prob = 0.5
     if url_model:
         feat_vector = [url_report["features"]]
         ml_url_prob = float(url_model.predict_proba(feat_vector)[0][1])
 
-    composite_url_score = int(min(100, max(0, (ml_url_prob * 100 * 0.5) + (url_report["risk_score"] * 0.5))))
+    # Factor in live web findings
+    live_penalty = 0
+    if live_web_report.get("has_password_field") and not url_report["is_trusted_domain"]:
+        live_penalty += 35
+    if live_web_report.get("has_financial_form") and not url_report["is_trusted_domain"]:
+        live_penalty += 30
+    if live_web_report.get("is_redirected"):
+        live_penalty += 15
+
+    composite_url_score = int(min(100, max(0, (ml_url_prob * 100 * 0.4) + (url_report["risk_score"] * 0.3) + live_penalty)))
 
     if composite_url_score >= 65:
         verdict = "Phishing / Malicious Website"
@@ -181,12 +240,14 @@ def analyze_url():
 
     recs = []
     if composite_url_score >= 65:
-        recs.append("🚨 DO NOT enter passwords, phone numbers, or credit card details on this website.")
-        recs.append("🔍 The domain exhibits characteristics of brand impersonation and spoofing.")
+        recs.append("Do NOT enter passwords, phone numbers, or credit card details on this website.")
+        recs.append("The domain exhibits indicators of brand spoofing and deceptive credential harvesting.")
     elif composite_url_score >= 35:
-        recs.append("⚠️ Proceed with caution. Verify the domain spelling and SSL certificate.")
+        recs.append("Proceed with caution. Verify the domain spelling and SSL certificate.")
     else:
-        recs.append("✅ Low risk indicators detected for this domain structure.")
+        recs.append("Low risk indicators detected for this domain structure.")
+
+    signals_formatted = [{"title": "Live Web / Structural Indicator", "description": s, "severity": "High"} for s in combined_signals]
 
     scan_id = log_scan(
         input_type="url",
@@ -194,8 +255,8 @@ def analyze_url():
         risk_score=composite_url_score,
         verdict=verdict,
         verdict_badge=badge,
-        model_name="Random Forest (URL Classifier)",
-        signals=[{"title": "URL Heuristic", "description": s, "severity": "High"} for s in url_report["warning_signals"]],
+        model_name="Random Forest + Live Web Inspector",
+        signals=signals_formatted,
         recs=recs,
         tokens=[]
     )
@@ -209,9 +270,10 @@ def analyze_url():
         "verdict_badge": badge,
         "entropy": url_report["entropy"],
         "is_trusted": url_report["is_trusted_domain"],
-        "warning_signals": url_report["warning_signals"],
-        "keywords_found": url_report["keywords_found"],
+        "warning_signals": combined_signals,
+        "live_web": live_web_report,
         "recommendations": recs,
+        "model_used": "Random Forest + Live Web Inspector",
         "features": {name: val for name, val in zip(url_report["feature_names"], url_report["features"])}
     })
 
@@ -224,23 +286,41 @@ def analyze_image():
     if file.filename == '':
         return jsonify({"error": "No selected image file."}), 400
 
+    image_bytes = file.read()
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
+    with open(filepath, "wb") as f:
+        f.write(image_bytes)
 
     model_name = request.form.get("model", "Logistic Regression")
+    api_key = request.form.get("api_key") or request.headers.get("X-API-Key") or os.environ.get("OPENAI_API_KEY")
 
-    # Run OCR & Text Extraction
+    # 1. Multimodal GPT-4o Vision if API key provided (True pixel-level OCR & Visual Fraud Inspection)
+    if api_key:
+        ext = filename.split('.')[-1].lower() if '.' in filename else 'png'
+        vision_result = analyze_image_with_gpt_vision(image_bytes, image_format=ext, api_key=api_key)
+        if vision_result:
+            extracted_text = vision_result.get("extracted_text", "[Image Analyzed by GPT-4o Vision]")
+            scan_id = log_scan(
+                input_type="image",
+                preview=f"[Screenshot Vision] {extracted_text[:120]}",
+                risk_score=vision_result["risk_score"],
+                verdict=vision_result["verdict"],
+                verdict_badge=vision_result["verdict_badge"],
+                model_name="OpenAI GPT-4o Vision",
+                signals=vision_result.get("signals", []),
+                recs=vision_result.get("recommendations", []),
+                tokens=vision_result.get("token_weights", [])
+            )
+            vision_result["scan_id"] = scan_id
+            vision_result["extracted_text"] = extracted_text
+            vision_result["model_used"] = "OpenAI GPT-4o Vision"
+            return jsonify(vision_result)
+
+    # 2. Local fallback inspection
     ocr_result = analyze_image_screenshot(filepath)
     extracted_text = ocr_result.get("extracted_text", "").strip()
 
-    if not extracted_text:
-        return jsonify({
-            "error": "Could not extract legible text from image.",
-            "ocr_meta": ocr_result
-        }), 400
-
-    # Analyze extracted text using ML
     model = text_models.get(model_name, text_models.get("Logistic Regression"))
     X_vec = vectorizer.transform([extracted_text])
     ml_prob = float(model.predict_proba(X_vec)[0][1])
@@ -249,11 +329,11 @@ def analyze_image():
 
     scan_id = log_scan(
         input_type="image",
-        preview=f"[Screenshot OCR] {extracted_text}",
+        preview=f"[Screenshot OCR] {extracted_text[:120]}",
         risk_score=xai_result["risk_score"],
         verdict=xai_result["verdict"],
         verdict_badge=xai_result["verdict_badge"],
-        model_name=model_name,
+        model_name=f"{model_name} (Local OCR)",
         signals=xai_result["signals"],
         recs=xai_result["recommendations"],
         tokens=xai_result["token_weights"]
@@ -262,7 +342,8 @@ def analyze_image():
     xai_result["scan_id"] = scan_id
     xai_result["extracted_text"] = extracted_text
     xai_result["image_meta"] = ocr_result
-    xai_result["model_used"] = model_name
+    xai_result["model_used"] = f"{model_name} (Local OCR)"
+    xai_result["tip"] = "Tip: Configure an OpenAI API key in the top AI Settings to activate full multimodal GPT-4o vision on any custom screenshot."
 
     return jsonify(xai_result)
 

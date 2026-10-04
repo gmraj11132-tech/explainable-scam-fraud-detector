@@ -1,6 +1,6 @@
 /**
  * ScamGuard XAI - Professional Client Controller
- * Clean Vector UI & High-Contrast Visualizations
+ * Multimodal AI Engine & Real-time Web Inspector
  */
 
 let currentInputMode = 'text';
@@ -14,6 +14,58 @@ const PRESETS = {
   job_offer: "Part-time job offer! Earn Rs 3,000 - 8,000 daily working from home on your phone. Just like and subscribe YouTube videos. Contact HR on WhatsApp: +91 9988776655.",
   legit_bank: "Dear customer, INR 1,500.00 debited from account ending in **4582 on 04-Oct-2026 at Amazon India. Available balance is INR 45,200.00. If not done by you, SMS BLOCK to 567676."
 };
+
+// API Key & GPT Engine Management
+function getStoredApiKey() {
+  return localStorage.getItem('scamguard_openai_key') || '';
+}
+
+function updateApiKeyStatus() {
+  const key = getStoredApiKey();
+  const statusElem = document.getElementById('api-status-text');
+  const btn = document.getElementById('api-key-btn');
+  if (key) {
+    statusElem.textContent = 'GPT-4o Engine Active';
+    btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    btn.style.color = '#6ee7b7';
+  } else {
+    statusElem.textContent = 'AI Engine / GPT Key';
+    btn.style.borderColor = 'rgba(99, 102, 241, 0.35)';
+    btn.style.color = '#c7d2fe';
+  }
+}
+
+function openApiKeyModal() {
+  const modal = document.getElementById('api-modal');
+  const input = document.getElementById('modal-api-key-input');
+  input.value = getStoredApiKey();
+  modal.style.display = 'flex';
+}
+
+function closeApiKeyModal() {
+  document.getElementById('api-modal').style.display = 'none';
+}
+
+function saveApiKey() {
+  const input = document.getElementById('modal-api-key-input');
+  const key = input.value.trim();
+  if (key) {
+    localStorage.setItem('scamguard_openai_key', key);
+    alert('OpenAI API Key saved! GPT-4o-mini & GPT-4o Vision are now active.');
+  } else {
+    localStorage.removeItem('scamguard_openai_key');
+  }
+  updateApiKeyStatus();
+  closeApiKeyModal();
+}
+
+function clearApiKey() {
+  localStorage.removeItem('scamguard_openai_key');
+  document.getElementById('modal-api-key-input').value = '';
+  updateApiKeyStatus();
+  alert('API Key removed. Reverting to local ML & Live Web Inspector.');
+  closeApiKeyModal();
+}
 
 // Main Tab Navigation
 function switchMainTab(tabId) {
@@ -48,7 +100,12 @@ function switchInputMode(mode) {
 function updateModelTag() {
   const select = document.getElementById('model-select');
   const tag = document.getElementById('active-model-tag');
-  tag.textContent = `Model: ${select.value}`;
+  const key = getStoredApiKey();
+  if (key) {
+    tag.textContent = 'Engine: OpenAI GPT-4o';
+  } else {
+    tag.textContent = `Model: ${select.value}`;
+  }
 }
 
 // 1-Click Preset Loader
@@ -89,11 +146,12 @@ function previewSelectedImage(event) {
 async function triggerScan() {
   const btn = document.getElementById('btn-scan');
   const modelName = document.getElementById('model-select').value;
+  const apiKey = getStoredApiKey();
   
   btn.disabled = true;
   btn.innerHTML = `
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
-    <span>Analyzing Feature Vectors...</span>
+    <span>Analyzing Feature Vectors & Web Context...</span>
   `;
 
   try {
@@ -108,7 +166,7 @@ async function triggerScan() {
       response = await fetch('/api/analyze/text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, model: modelName })
+        body: JSON.stringify({ text, model: modelName, api_key: apiKey })
       });
       data = await response.json();
 
@@ -121,7 +179,7 @@ async function triggerScan() {
       response = await fetch('/api/analyze/url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url, api_key: apiKey })
       });
       data = await response.json();
 
@@ -134,6 +192,9 @@ async function triggerScan() {
       const formData = new FormData();
       formData.append('image', fileInput.files[0]);
       formData.append('model', modelName);
+      if (apiKey) {
+        formData.append('api_key', apiKey);
+      }
 
       response = await fetch('/api/analyze/image', {
         method: 'POST',
@@ -159,7 +220,7 @@ async function triggerScan() {
   }
 }
 
-// Render Results with Vector Icons
+// Render Results with Vector Icons & Reasoning Details
 function renderScanResults(result) {
   lastScanId = result.scan_id;
   
@@ -178,7 +239,8 @@ function renderScanResults(result) {
     iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
   }
 
-  badgeContainer.innerHTML = `<span class="verdict-badge ${result.verdict_badge}">${iconSvg}<span>${result.verdict}</span></span>`;
+  const modelInfoTag = result.model_used ? `<span class="version-pill" style="margin-left: 8px;">${result.model_used}</span>` : '';
+  badgeContainer.innerHTML = `<span class="verdict-badge ${result.verdict_badge}">${iconSvg}<span>${result.verdict}</span></span>${modelInfoTag}`;
 
   // 2. Risk Score & Meter
   const riskNum = document.getElementById('risk-number');
@@ -191,7 +253,26 @@ function renderScanResults(result) {
   riskBar.style.width = `${targetScore}%`;
   riskBar.style.backgroundColor = targetScore >= 65 ? '#ef4444' : targetScore >= 30 ? '#f59e0b' : '#10b981';
 
-  // 3. Token Attribution Heatmap
+  // 3. Reasoning Summary Box (if present from GPT)
+  let reasoningBox = document.getElementById('reasoning-summary-box');
+  if (!reasoningBox) {
+    reasoningBox = document.createElement('div');
+    reasoningBox.id = 'reasoning-summary-box';
+    reasoningBox.style.cssText = 'background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; font-size: 0.8rem; color: #c7d2fe; line-height: 1.5;';
+    const meterBox = document.querySelector('.risk-meter-box');
+    meterBox.parentNode.insertBefore(reasoningBox, meterBox.nextSibling);
+  }
+  if (result.reasoning_summary) {
+    reasoningBox.style.display = 'block';
+    reasoningBox.innerHTML = `<b>AI Forensic Summary:</b> ${result.reasoning_summary}`;
+  } else if (result.live_web && result.live_web.page_title) {
+    reasoningBox.style.display = 'block';
+    reasoningBox.innerHTML = `<b>Live Web Telemetry:</b> Title: <i>"${result.live_web.page_title}"</i> | Reachable: ${result.live_web.is_reachable ? 'Yes' : 'No'} | Redirects: ${result.live_web.is_redirected ? 'Yes' : 'None'}`;
+  } else {
+    reasoningBox.style.display = 'none';
+  }
+
+  // 4. Token Attribution Heatmap
   const tokenCloud = document.getElementById('token-cloud');
   const tokenBox = document.getElementById('token-attribution-box');
   
@@ -200,7 +281,7 @@ function renderScanResults(result) {
     tokenCloud.innerHTML = result.token_weights.map(t => {
       const isScam = t.impact === 'scam';
       const sign = isScam ? '+' : '';
-      return `<span class="token-tag ${t.impact}" title="Linear Log-Odds Weight: ${t.weight}">
+      return `<span class="token-tag ${t.impact}" title="Weight: ${t.weight}">
         <span>${t.word}</span> <span style="opacity: 0.8; font-size: 0.7rem;">(${sign}${t.weight})</span>
       </span>`;
     }).join(' ');
@@ -208,7 +289,7 @@ function renderScanResults(result) {
     tokenBox.style.display = 'none';
   }
 
-  // 4. Psychological & Deception Signals
+  // 5. Psychological & Deception Signals
   const signalsList = document.getElementById('signals-list');
   if (result.signals && result.signals.length > 0) {
     signalsList.innerHTML = result.signals.map(s => `
@@ -224,7 +305,7 @@ function renderScanResults(result) {
     signalsList.innerHTML = result.warning_signals.map(ws => `
       <div class="signal-card High">
         <div class="signal-text">
-          <h4>URL Security Indicator</h4>
+          <h4>Security Indicator</h4>
           <p>${ws}</p>
         </div>
       </div>
@@ -240,7 +321,7 @@ function renderScanResults(result) {
     `;
   }
 
-  // 5. Actionable Recommendations
+  // 6. Actionable Recommendations
   const recsList = document.getElementById('recs-list');
   recsList.innerHTML = (result.recommendations || []).map(r => `<li>${r}</li>`).join('');
 
@@ -326,5 +407,6 @@ styleSheet.innerText = `
 document.head.appendChild(styleSheet);
 
 document.addEventListener('DOMContentLoaded', () => {
+  updateApiKeyStatus();
   updateModelTag();
 });
