@@ -2,6 +2,9 @@
 > **4th Year B.Tech Computer Science & Engineering (7th Semester Major/Mini Project)**  
 > **Topic:** Explainable Multimodal Scam Detection System Using Machine Learning for Digital Communication Security
 
+🌐 **Live Deployed Website:** [https://scamguard-xai.vercel.app](https://scamguard-xai.vercel.app)  
+📦 **GitHub Repository:** [https://github.com/gmraj11132-tech/explainable-scam-fraud-detector](https://github.com/gmraj11132-tech/explainable-scam-fraud-detector)
+
 ---
 
 ## 🌟 Project Overview
